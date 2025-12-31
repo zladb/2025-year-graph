@@ -15,16 +15,10 @@ const ShareModal: React.FC<ShareModalProps> = ({ data, onClose }) => {
   const [copied, setCopied] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
-  // 데이터 분석
   const stats = useMemo(() => {
     const average = Math.round(data.reduce((acc, curr) => acc + curr.score, 0) / 12);
-    
-    // 최고의 달 (가장 높은 점수)
     const best = data.reduce((prev, curr) => (curr.score >= prev.score ? curr : prev), data[0]);
-    
-    // 최저의 달 (가장 낮은 점수)
     const worst = data.reduce((prev, curr) => (curr.score <= prev.score ? curr : prev), data[0]);
-
     return { average, best, worst };
   }, [data]);
 
@@ -49,19 +43,43 @@ const ShareModal: React.FC<ShareModalProps> = ({ data, onClose }) => {
   const handleSaveImage = async () => {
     if (!cardRef.current) return;
     setDownloading(true);
+    
     try {
+      await document.fonts.ready;
+      await new Promise(r => setTimeout(r, 600));
+
+      const filter = (node: HTMLElement) => {
+        // 모든 외부 CSS 링크를 무시하여 보안 에러 차단
+        if (node.tagName === 'LINK') return false;
+        return true;
+      };
+
       const dataUrl = await toPng(cardRef.current, {
-        quality: 1,
-        pixelRatio: 3, 
+        quality: 1.0,
+        pixelRatio: 2.5, 
         cacheBust: true,
+        backgroundColor: '#ffffff',
+        filter: filter as any,
+        fontEmbedCSS: '',
       });
+      
+      // Blob 방식으로 저장 유도 (성공률 높음)
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+
       const link = document.createElement('a');
-      link.download = `2025_My_Life_Map.png`;
-      link.href = dataUrl;
+      link.download = `2025_인생_그래프.png`;
+      link.href = blobUrl;
+      document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
+      
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+
     } catch (err) {
-      console.error("이미지 저장 실패:", err);
-      alert("이미지 저장 중 오류가 발생했습니다.");
+      console.error("이미지 저장 에러:", err);
+      alert("이미지 저장 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
     } finally {
       setDownloading(false);
     }
@@ -76,7 +94,6 @@ const ShareModal: React.FC<ShareModalProps> = ({ data, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-[150] flex items-center justify-center p-0 md:p-6 bg-slate-900/90 backdrop-blur-xl animate-in fade-in duration-300">
-      {/* 닫기 버튼 (모바일에서는 상단 고정, 데스크톱에서는 모달 우측 상단 내부) */}
       <button 
         onClick={onClose} 
         className="fixed md:absolute top-4 right-4 md:top-8 md:right-8 p-3 bg-white/10 md:bg-slate-100 text-white md:text-slate-400 rounded-full transition-all hover:bg-white/20 md:hover:bg-slate-200 z-[160]"
@@ -86,7 +103,6 @@ const ShareModal: React.FC<ShareModalProps> = ({ data, onClose }) => {
 
       <div className="bg-white w-full h-full md:h-auto md:max-w-4xl md:rounded-[56px] shadow-2xl flex flex-col md:flex-row overflow-y-auto md:overflow-hidden md:max-h-[90vh] scrollbar-hide">
         
-        {/* 미리보기 영역 */}
         <div className="bg-slate-50 p-6 md:p-12 flex items-center justify-center shrink-0 md:w-[45%] border-b md:border-b-0 md:border-r border-slate-100">
           <div 
             ref={cardRef} 
@@ -105,7 +121,7 @@ const ShareModal: React.FC<ShareModalProps> = ({ data, onClose }) => {
               </header>
 
               <div className="flex-1 flex flex-col justify-center mb-6 md:mb-8">
-                <svg viewBox="0 0 300 120" className="w-full drop-shadow-lg">
+                <svg viewBox="0 0 300 120" width="300" height="120" className="w-full drop-shadow-lg">
                    <defs>
                     <linearGradient id="modalGrad" x1="0%" y1="0%" x2="100%" y2="0%">
                       <stop offset="0%" stopColor="#38BDF8" />
@@ -157,7 +173,6 @@ const ShareModal: React.FC<ShareModalProps> = ({ data, onClose }) => {
           </div>
         </div>
 
-        {/* 조작 영역 (오른쪽 패널) */}
         <div className="flex-1 p-8 md:p-14 lg:p-20 flex flex-col justify-start md:justify-center bg-white">
           <div className="mb-8 md:mb-12 text-center md:text-left">
             <h2 className="text-xl md:text-3xl lg:text-3xl font-black text-slate-900 mb-3 md:mb-4 tracking-tighter leading-tight">
